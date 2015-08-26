@@ -1,0 +1,9 @@
+---
+- name: and here it for yum update, haproxy, disks, gluster, haproxy, base VMs prestaging
+  hosts: all
+
+- include: all_basics.yml
+- include: control_disk.yml
+- include: gluster.yml
+- include: kvm_libvirt.yml
+- include: haproxy.yml

@@ -1,0 +1,3 @@
+[base]
+stacka.onecloudinc.com remote_addr=66.220.11.229 remote_name=stackb.onecloudinc.com proxy_ip=66.220.11.251 local_addr=66.220.11.228 local_name=stacka.onecloudinc.com if_dev=eth0 gl_dev=sdb target_ip=127.0.0.1 proxy_nm=22
+stackb.onecloudinc.com remote_addr=66.220.11.228 remote_name=stacka.onecloudinc.com proxy_ip=66.220.11.251 local_addr=66.220.11.229 local_name=stackb.onecloudinc.com if_dev=eth0 gl_dev=sdb target_ip=127.0.0.1 proxy_nm=22

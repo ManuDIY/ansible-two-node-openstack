@@ -1,0 +1,71 @@
+---
+- hosts: base
+  sudo: yes
+  vars:
+    cert_path: /etc/ssl
+    cert_pem: sample.pem
+  tasks:
+
+  - name: install keepalived
+    yum: name=keepalived state=present
+
+  - name: install haproxy
+    yum: name=haproxy state=present
+
+  - name: install haproxy cfg file
+    template:
+      src: ./roles/templates/haproxy.j2
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: control[0]
+  sudo: yes
+  vars:
+    keepalive_priority: 105
+    kd_role: MASTER
+  tasks:
+
+  - name: install keepalived.conf file
+    template:
+      src: ./roles/templates/vrrp.j2
+      dest: /etc/keepalived/keepalived.conf
+
+- hosts: control[1]
+  sudo: yes
+  vars:
+    keepalive_priority: 100
+    kd_role: BACKUP
+  tasks:
+
+  - name: install keepalived.conf file
+    template:
+      src: ./roles/templates/vrrp.j2
+      dest: /etc/keepalived/keepalived.conf
+
+- hosts: control
+  sudo: yes
+  tasks:
+
+  - name: add sysctl to support bind addresses
+    lineinfile: dest=/etc/sysctl.conf line='net.ipv4.ip_nonlocal_bind=1'
+
+  - name: add sysctl to support ip forwarding
+    lineinfile: dest=/etc/sysctl.conf line='net.ipv4.ip_forward=1'
+
+  - name: reload sysctl
+    command: sysctl -p
+
+  - name: enable keepalived
+    service: name=keepalived state=restarted enabled=yes
+
+  - name: start keepalived
+    service: name=keepalived state=restarted enabled=yes
+
+  - name: enable haproxy
+    service: name=haproxy state=enabled
+
+  - name: start haproxy
+    service: name=haproxy state=restarted
+

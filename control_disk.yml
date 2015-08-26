@@ -1,0 +1,14 @@
+---
+- hosts: base
+  sudo: yes
+  tasks:
+
+  - name: format gluster disk /dev/{{ gl_dev }}
+    filesystem: fstype=xfs dev=/dev/{{ gl_dev }} force=true
+
+  - name: make mnt directory /mnt/gluster
+    file: path=/mnt/gluster owner=root group=root mode=0755 state=directory
+
+  - name: mount gluster disk into /mnt/gluster
+    mount: name=/mnt/gluster src=/dev/{{ gl_dev}} fstype=xfs state=mounted
+

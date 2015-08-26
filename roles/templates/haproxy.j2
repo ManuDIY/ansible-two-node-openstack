@@ -1,0 +1,111 @@
+global
+    daemon
+
+defaults
+    mode http
+    maxconn 10000
+    timeout connect 10s
+    timeout client 10s
+    timeout server 10s
+
+frontend horizon-vip
+    bind {{ proxy_ip }}:80
+    bind {{ proxy_ip }}:443 ssl crt {{cert_path}}{{cert_pem}}
+    redirect scheme https if !{ ssl_fc }
+    mode http
+    default_backend horizon
+
+frontend keystone-admin-vip
+    bind {{ proxy_ip }}:35357 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend keystone-admin-api
+
+frontend keystone-public-vip
+    bind {{ proxy_ip }}:5000 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend keystone-public-api
+
+frontend quantum-vip
+    bind {{ proxy_ip }}:9696 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend quantum-api
+
+frontend glance-vip
+    bind {{ proxy_ip }}:9191 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend glance-api
+
+frontend glance-registry-vip
+    bind {{ proxy_ip }}:9292 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend glance-registry-api
+
+frontend nova-ec2-vip
+    bind {{ proxy_ip }}:8773 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend nova-ec2-api
+
+frontend nova-compute-vip
+    bind {{ proxy_ip }}:8774 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend nova-compute-api
+
+frontend nova-metadata-vip
+    bind {{ proxy_ip }}:8775 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend nova-metadata-api
+
+frontend cinder-vip
+    bind {{ proxy_ip }}:8776 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend cinder-api
+
+frontend sahara-vip
+    bind {{ proxy_ip }}:8386 ssl crt {{cert_path}}{{cert_pem}}
+    default_backend sahara-api
+
+backend horizon
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:81 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:81 check inter 10s backup
+
+backend keystone-admin-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:35358 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:35357 check inter 10s backup
+
+backend keystone-public-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:4998 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:5000 check inter 10s backup
+
+backend quantum-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:9696 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:9696 check inter 10s backup
+
+backend glance-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:9191 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:9191 check inter 10s backup
+
+backend glance-registry-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:9292 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:9292 check inter 10s backup
+
+backend nova-ec2-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:8773 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:8773 check inter 10s backup
+
+backend nova-compute-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:8774 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:8774 check inter 10s backup
+
+backend nova-metadata-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:8775 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:8775 check inter 10s backup
+
+backend cinder-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:8776 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:8776 check inter 10s backup
+
+backend sahara-api
+    balance roundrobin
+    server {{ local_name }} 127.0.0.1:8386 check inter 10s
+    server {{ remote_name }} {{ remote_addr }}:8386 check inter 10s backup

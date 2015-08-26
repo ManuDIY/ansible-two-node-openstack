@@ -1,0 +1,91 @@
+# KVM passthrough configuration
+# Libvirt Setup
+- hosts: all
+  sudo: yes
+  vars:
+    nested: y
+    mgmt_int: bond0
+    mgmt_br: br0
+  tasks:
+
+  - name: ensure libvirt is installed
+    yum: name=@virt*  state=present
+
+  - name: ensure libguestfs-tools are available
+    yum: name=libguestfs-tools state=present
+
+  - name: ensure KVM can run in 'nested' state
+    template:
+      src: ./roles/templates/kvm.conf.j2
+      dest: /etc/modprobe.d/kvm.conf
+
+  - name: remove the kvm module
+    command: rmmod kvm-intel
+
+  - name: insert the kvm module
+    command: modprobe kvm-intel
+
+  - name: enable libvirtd service
+    service: name=libvirtd state=restarted enabled=yes
+
+#
+# Map the "mgmt_int" interface to br0
+#
+
+  - name: duplicate the mgmt_int interface info to the br0 bridge
+    command: cp /etc/sysconfig/network-scripts/ifcfg-{{mgmt_int}} /etc/sysconfig/network-scripts/ifcfg-br0 creates=/etc/sysconfig/newtork-scritps/ifcfg-br0
+
+  - name: update config of br0 for bridging
+    command: sed -i -e'/HWADDR/d' -e'/UUID/d' -e's/{{mgmt_int}}/br0/' -e's/Ethernet/Bridge/' /etc/sysconfig/network-scripts/ifcfg-br0
+
+  - name: add "DELAY=0" param to bridge
+    lineinfile: dest=/etc/sysconfig/network-scripts/ifcfg-br0 state=present line='DELAY=0'
+
+  - name: change BOOTPROTO=none in mgmt_int
+    lineinfile: dest=/etc/sysconfig/network-scripts/ifcfg-{{mgmt_int}} state=present regexp='BOOTPROTO*' line='BOOTPROTO=none'
+
+  - name: add mgmt_int to br0 bridge
+    lineinfile: dest=/etc/sysconfig/network-scripts/ifcfg-{{mgmt_int}} state=present line='BRIDGE=br0'
+
+  - name: restart the network service
+    service: name=network state=restarted
+
+  - name: ensure forwarding in sysctl
+    lineinfile: dest=/etc/sysctl.conf line='net.ipv4.ip_forward=1' state=present
+    notify: sysctl_restart
+
+  - name: copy xml network definintion
+    template: src=./roles/templates/network.xml.j2 dest=/etc/libvirt/qemu/networks/{{mgmt_br}}.xml
+
+  - name: stop management bridge
+    command: virsh net-destroy default
+    ignore_errors: yes
+
+  - name: cancel the autostart of management
+    command: virsh net-autostart default --disable
+    ignore_errors: yes
+
+  - name: add network to libvirt
+    command: virsh net-create /tmp/network.xml creates=/etc/libvirt/qemu/networks/br0.xml
+
+  - name: ensure auto-start for mgmt_br
+    command: virsh net-autostart {{mgmt_br}} 
+    ignore_errors: yes
+
+#
+# Set up Libvirt storage on the shared gluster disk
+#
+
+  - name: create a libvirt directory on the shared filesystem
+    file: path=/mnt/shared/libvirt owner=root group=root mode=0755 state=directory
+
+  # - name: update selinux for virtualization
+  #   command: semanage fcontext -a -t virt_image_t "/mnt/shared/libvirt(/.*)?"
+
+  - name: restore the selinux service for the new directory
+    command: restorecon -R /mnt/shared/libvirt
+
+  handlers:
+
+  - name: sysctl_restart
+    command: sysctl -p

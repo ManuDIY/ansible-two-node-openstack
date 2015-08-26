@@ -1,0 +1,21 @@
+vrrp_script haproxy-check {
+    script "killall -0 haproxy"
+    interval 2
+    weight 10
+}
+
+vrrp_instance openstack-vip {
+    state {{ kd_role }}
+    priority {{ keepalive_priority }}
+    interface {{ if_dev }}
+    virtual_router_id 47
+    advert_int 2
+
+    virtual_ipaddress {
+        {{ proxy_ip }}/{{ proxy_nm }}
+    }
+
+    track_script {
+    	haproxy-check
+    }
+}
