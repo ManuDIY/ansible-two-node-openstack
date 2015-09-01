@@ -6,6 +6,8 @@
     nested: y
     mgmt_int: bond0
     mgmt_br: br0
+    cloud_path: /mnt/shared/libvirt/
+    cloud_image_src: http://icehouse.onecloudinc.com/centos-7.qcow2
   tasks:
 
   - name: ensure libvirt is installed
@@ -55,7 +57,7 @@
     notify: sysctl_restart
 
   - name: copy xml network definintion
-    template: src=./roles/templates/network.xml.j2 dest=/etc/libvirt/qemu/networks/{{mgmt_br}}.xml
+    template: src=./roles/templates/network.xml.j2 dest=/tmp/{{mgmt_br}}.xml
 
   - name: stop management bridge
     command: virsh net-destroy default
@@ -66,7 +68,7 @@
     ignore_errors: yes
 
   - name: add network to libvirt
-    command: virsh net-create /tmp/network.xml creates=/etc/libvirt/qemu/networks/br0.xml
+    command: virsh net-define /tmp/{{mgmt_br}}.xml creates=/etc/libvirt/qemu/networks/br0.xml
 
   - name: ensure auto-start for mgmt_br
     command: virsh net-autostart {{mgmt_br}} 
@@ -85,6 +87,40 @@
   - name: restore the selinux service for the new directory
     command: restorecon -R /mnt/shared/libvirt
 
+#
+# Add VMs via libvirt for control and database
+#
+
+  - name: upload vm xml
+    template: src=./roles/templates/vm.xml.j2 dest=/mnt/shared/vm{{item.vm_name}}.xml.j2
+    with_items:
+      - "{ vm_name='ctrl-a', mem_kb='4194304', num_vcpu=4, last_octets='a0:10'}"
+      - "{ vm_name='ctrl-b', mem_kb='4194304', num_vcpu=4, last_octets='a1:11'}"
+      - "{ vm_name='mysql-a', mem_kb='2097152', num_vcpu=2, last_octets='a2:12'}"
+      - "{ vm_name='mysql-b', mem_kb='2097152', num_vcpu=2, last_octets='a3:13'}"
+    run_once: true
+
+  - name: upload vm cloud_image
+    command:  wget -O /mnt/shared/{{item}}.qcow2 {{cloud_image_src}} creates=/mnt/shared/{{item}}.qcow2
+    with_items:
+      - ctrl-a
+      - ctrl-b
+      - myqsl-a
+      - mysql-b
+
+  - name: create default pool
+    command: virsh pool-define-as --name default --type dir --target /mnt/shared/libvirt
+
+  - name: autostart default pool
+    command: pool-autostart default
+
+  - name: build pool
+    command: pool-build default
+
+  - name: start pool
+    command: pool-start default
+
+   
   handlers:
 
   - name: sysctl_restart
