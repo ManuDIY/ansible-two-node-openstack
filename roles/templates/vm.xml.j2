@@ -1,8 +1,8 @@
 <domain type='kvm'>
-  <name>{{item.vm_name}}</name>
-  <memory unit='KiB'>{{item.mem_kb}}</memory>
-  <currentMemory unit='KiB'>{{item.mem_kb}}</currentMemory>
-  <vcpu placement='static'>{{item.num_vcpu}}</vcpu>
+  <name>{{item.key}}</name>
+  <memory unit='KiB'>{{item.value.mem_kb}}</memory>
+  <currentMemory unit='KiB'>{{item.value.mem_kb}}</currentMemory>
+  <vcpu placement='static'>{{item.value.num_vcpu}}</vcpu>
   <os>
     <type arch='x86_64' machine='pc-i440fx-rhel7.0.0'>hvm</type>
     <boot dev='hd'/>
@@ -27,7 +27,7 @@
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='{{cloud_image}}'/>
+      <source file='/mnt/shared/libvirt/{{item.key}}.qcow2'/>
       <target dev='vda' bus='virtio'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
     </disk>
@@ -57,8 +57,8 @@
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
     <interface type='network'>
-      <mac address='52:54:00:b7:{{item.last_octets}}'/>
-      <source network='default'/>
+      <mac address='52:54:00:b7:0a:{{item.value.last_octet}}'/>
+      <source network='br0'/>
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>

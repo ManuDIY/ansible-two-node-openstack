@@ -7,7 +7,25 @@
     mgmt_int: bond0
     mgmt_br: br0
     cloud_path: /mnt/shared/libvirt/
-    cloud_image_src: http://icehouse.onecloudinc.com/centos-7.qcow2
+    cloud_image_src: http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-20150628_01.qcow2
+    vms:
+      ctrl-a:
+        mem_kb: '4194304'
+        num_vcpu: '4'
+        last_octet: '10'
+      ctrl-b:
+        mem_kb: '4194304'
+        num_vcpu: '4'
+        last_octet: '21'
+      mysql-a:
+        mem_kb: '2097152'
+        num_vcpu: '2'
+        last_octet: '32'
+      mysql-b:
+        mem_kb: '2097152'
+        num_vcpu: '2'
+        last_octet: '43'
+
   tasks:
 
   - name: ensure libvirt is installed
@@ -15,6 +33,9 @@
 
   - name: ensure libguestfs-tools are available
     yum: name=libguestfs-tools state=present
+
+  - name: ensure semanage tools are available
+    yum: name=policycoreutils-python state=present
 
   - name: ensure KVM can run in 'nested' state
     template:
@@ -81,8 +102,8 @@
   - name: create a libvirt directory on the shared filesystem
     file: path=/mnt/shared/libvirt owner=root group=root mode=0755 state=directory
 
-  # - name: update selinux for virtualization
-  #   command: semanage fcontext -a -t virt_image_t "/mnt/shared/libvirt(/.*)?"
+  - name: update selinux for virtualization
+    command: semanage fcontext -a -t virt_image_t "/mnt/shared/libvirt(/.*)?"
 
   - name: restore the selinux service for the new directory
     command: restorecon -R /mnt/shared/libvirt
@@ -92,33 +113,41 @@
 #
 
   - name: upload vm xml
-    template: src=./roles/templates/vm.xml.j2 dest=/mnt/shared/vm{{item.vm_name}}.xml.j2
-    with_items:
-      - "{ vm_name='ctrl-a', mem_kb='4194304', num_vcpu=4, last_octets='a0:10'}"
-      - "{ vm_name='ctrl-b', mem_kb='4194304', num_vcpu=4, last_octets='a1:11'}"
-      - "{ vm_name='mysql-a', mem_kb='2097152', num_vcpu=2, last_octets='a2:12'}"
-      - "{ vm_name='mysql-b', mem_kb='2097152', num_vcpu=2, last_octets='a3:13'}"
+    template: src=./roles/templates/vm.xml.j2 dest=/mnt/shared/{{item.key}}.xml
+    #debug: msg="{{ item.key }} and {{item.value.mem_kb}}"
+    with_dict: "{{ vms }}"
     run_once: true
 
   - name: upload vm cloud_image
-    command:  wget -O /mnt/shared/{{item}}.qcow2 {{cloud_image_src}} creates=/mnt/shared/{{item}}.qcow2
-    with_items:
-      - ctrl-a
-      - ctrl-b
-      - myqsl-a
-      - mysql-b
+    get_url: url="{{cloud_image_src}}" dest=/mnt/shared/libvirt/centos-7-0615.qcow2
+    run_once: true
+
+  - name: duplicate qcow for vms
+    command: /bin/cp /mnt/shared/libvirt/centos-7-0615.qcow2 /mnt/shared/libvirt/{{item.key}}.qcow2 creates=/mnt/shared/libvirt/{{item.key}}.qcow2
+    with_dict: "{{ vms }}"
+    run_once: true
 
   - name: create default pool
     command: virsh pool-define-as --name default --type dir --target /mnt/shared/libvirt
+    ignore_errors: yes
 
   - name: autostart default pool
-    command: pool-autostart default
+    command: virsh pool-start default
+    ignore_errors: yes
 
   - name: build pool
-    command: pool-build default
+    command: virsh pool-build default
+    ignore_errors: yes
 
   - name: start pool
-    command: pool-start default
+    command: virsh pool-autostart default
+    ignore_errors: yes
+
+  - name: update selinux for virtualization
+    command: semanage fcontext -a -t virt_image_t "/mnt/shared/libvirt(/.*)?"
+
+  - name: restore the selinux service for the new directory
+    command: restorecon -R /mnt/shared/libvirt
 
    
   handlers:
