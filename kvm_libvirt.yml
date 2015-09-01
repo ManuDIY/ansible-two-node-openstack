@@ -6,25 +6,29 @@
     nested: y
     mgmt_int: bond0
     mgmt_br: br0
+    network:  "bridge:{{mgmt_br}}"
+    cdrom: "/mnt/shared/centos-7-min.iso"
+    disk: "/mnt/shared/libvirt/ctrl-a.qcow2,size=20,format=qcow2"
+    extra_args: "ks=file:/kick-min.ks console=tty0 console=ttyS0,115200"
     cloud_path: /mnt/shared/libvirt/
-    cloud_image_src: http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-20150628_01.qcow2
+    cloud_image_src: http://mirror.ash.fastserv.com/pub/linux/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1503-01.iso
     vms:
       ctrl-a:
         mem_kb: '4194304'
         num_vcpu: '4'
-        last_octet: '10'
+        last_octet: '11'
       ctrl-b:
         mem_kb: '4194304'
         num_vcpu: '4'
-        last_octet: '21'
+        last_octet: '12'
       mysql-a:
         mem_kb: '2097152'
         num_vcpu: '2'
-        last_octet: '32'
+        last_octet: '13'
       mysql-b:
         mem_kb: '2097152'
         num_vcpu: '2'
-        last_octet: '43'
+        last_octet: '14'
 
   tasks:
 
@@ -118,14 +122,18 @@
     with_dict: "{{ vms }}"
     run_once: true
 
-  - name: upload vm cloud_image
-    get_url: url="{{cloud_image_src}}" dest=/mnt/shared/libvirt/centos-7-0615.qcow2
+  - name: upload kickstart file
+    template: src=./roles/templates/kick-min.ks.j2 dest=/mnt/shared/kick-min.ks
     run_once: true
 
-  - name: duplicate qcow for vms
-    command: /bin/cp /mnt/shared/libvirt/centos-7-0615.qcow2 /mnt/shared/libvirt/{{item.key}}.qcow2 creates=/mnt/shared/libvirt/{{item.key}}.qcow2
-    with_dict: "{{ vms }}"
+  - name: upload minimal ISO for creating cloud_image
+    get_url: url="{{cloud_image_src}}" dest=/mnt/shared/centos-7-min.iso
     run_once: true
+
+  # - name: duplicate qcow for vms
+  #   command: /bin/cp /mnt/shared/libvirt/centos-7-0615.qcow2 /mnt/shared/libvirt/{{item.key}}.qcow2 creates=/mnt/shared/libvirt/{{item.key}}.qcow2
+  #   with_dict: "{{ vms }}"
+  #   run_once: true
 
   - name: create default pool
     command: virsh pool-define-as --name default --type dir --target /mnt/shared/libvirt
@@ -149,6 +157,9 @@
   - name: restore the selinux service for the new directory
     command: restorecon -R /mnt/shared/libvirt
 
+  - name: build a VM for control and for compute
+    command: virt-install --hvm --name {{item.key}} --initrd-inject=/mnt/shared/kick-min.ks --ram ((item.value.ram/1024}} --vcpu {{item.value.num_vcpu}} --extra-args={{extra_args}} --cdrom={{cdrom}} --disk {{disk}} --network {{network}} --nographics
+    with_dict: "{{ vms }}"
    
   handlers:
 

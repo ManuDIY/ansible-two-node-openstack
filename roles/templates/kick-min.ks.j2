@@ -1,0 +1,29 @@
+install
+lang en_GB.UTF-8
+keyboard us
+timezone US/Pacific
+auth --useshadow --enablemd5
+network --device eth0 --bootproto static --ip 10.1.64.{{item.value.last_octet}} --netmask 255.255.255.0 --gateway 10.1.64.1 --nameserver 10.1.1.92
+ --hostname sun-msservices --enabled=sshd
+eula --agreed
+ignoredisk --only-use=vda
+reboot
+
+
+bootloader --location=mbr --append="console=tty0 console=ttyS0,115200 rd_NO_PLYMOUTH"
+zerombr
+clearpart --all --initlabel
+part swap --asprimary --fstype="swap" --size=1024
+part /boot --fstype xfs --size=200
+part pv.01 --size=1 --grow
+volgroup rootvg01 pv.01
+logvol / --fstype xfs --name=lv01 --vgname=rootvg01 --size=1 --grow
+
+rootpw {{ root_pw }}
+
+repo --name=base --baseurl=http://mirror.centos.org/pub/linux/centos/7/os/x86_64/
+url --url="http://mirror.centos.org/pub/linux/centos/7/os/x86_64/"
+
+%packages --nobase --ignoremissing
+@core
+%end
