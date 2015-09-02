@@ -3,7 +3,8 @@ lang en_GB.UTF-8
 keyboard us
 timezone US/Pacific
 auth --useshadow --enablemd5
-network --device eth0 --bootproto static --ip 10.1.64.{{item.value.last_octet}} --netmask 255.255.255.0 --gateway 10.1.64.1 --nameserver 10.1.1.92 --hostname {{item.key}} --enabled=sshd
+network --device eth0 --bootproto static --ip 10.1.64.{{item.value.last_octet}} --netmask 255.255.255.0 --gateway 10.1.64.1 --nameserver 10.1.1.92 --hostname {{item.key}}
+services --enabled=sshd
 eula --agreed
 ignoredisk --only-use=vda
 reboot
