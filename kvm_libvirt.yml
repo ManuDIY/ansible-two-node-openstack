@@ -8,27 +8,27 @@
     mgmt_br: br0
     network:  "bridge:{{mgmt_br}}"
     cdrom: "/mnt/shared/centos-7-min.iso"
-    disk: "/mnt/shared/libvirt/ctrl-a.qcow2,size=20,format=qcow2"
-    extra_args: "ks=file:/kick-min.ks console=tty0 console=ttyS0,115200"
+    root_pw: '7h!s!sApw'
     cloud_path: /mnt/shared/libvirt/
     cloud_image_src: http://mirror.ash.fastserv.com/pub/linux/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1503-01.iso
+    location: "http://mirror.ash.fastserv.com/pub/linux/centos/7/os/x86_64/"
     vms:
       ctrl-a:
-        mem_kb: '4194304'
-        num_vcpu: '4'
-        last_octet: '11'
+        mem_mb: 4096
+        num_vcpu: 4
+        last_octet: 211
       ctrl-b:
-        mem_kb: '4194304'
-        num_vcpu: '4'
-        last_octet: '12'
+        mem_mb: 4096
+        num_vcpu: 4
+        last_octet: 212
       mysql-a:
-        mem_kb: '2097152'
-        num_vcpu: '2'
-        last_octet: '13'
+        mem_mb: 2048
+        num_vcpu: 2
+        last_octet: 213
       mysql-b:
-        mem_kb: '2097152'
-        num_vcpu: '2'
-        last_octet: '14'
+        mem_mb: 2048
+        num_vcpu: 2
+        last_octet: 214
 
   tasks:
 
@@ -116,14 +116,15 @@
 # Add VMs via libvirt for control and database
 #
 
-  - name: upload vm xml
-    template: src=./roles/templates/vm.xml.j2 dest=/mnt/shared/{{item.key}}.xml
-    #debug: msg="{{ item.key }} and {{item.value.mem_kb}}"
-    with_dict: "{{ vms }}"
-    run_once: true
+  # - name: upload vm xml
+  #   template: src=./roles/templates/vm.xml.j2 dest=/mnt/shared/{{item.key}}.xml
+  #   #debug: msg="{{ item.key }} and {{item.value.mem_kb}}"
+  #   with_dict: "{{ vms }}"
+  #   run_once: true
 
   - name: upload kickstart file
-    template: src=./roles/templates/kick-min.ks.j2 dest=/mnt/shared/kick-min.ks
+    template: src=./roles/templates/kick-min.ks.j2 dest=/mnt/shared/{{item.key}}-min.ks
+    with_dict: "{{vms}}"
     run_once: true
 
   - name: upload minimal ISO for creating cloud_image
@@ -158,8 +159,10 @@
     command: restorecon -R /mnt/shared/libvirt
 
   - name: build a VM for control and for compute
-    command: virt-install --hvm --name {{item.key}} --initrd-inject=/mnt/shared/kick-min.ks --ram ((item.value.ram/1024}} --vcpu {{item.value.num_vcpu}} --extra-args={{extra_args}} --cdrom={{cdrom}} --disk {{disk}} --network {{network}} --nographics
+    command: virt-install --hvm --name {{item.key}} --initrd-inject=/mnt/shared/{{item.key}}-min.ks --ram {{item.value.mem_mb}} --vcpu {{item.value.num_vcpu}} --extra-args "ks=file://{{item.key}}-min.ks console=tty0 console=ttyS0,115200" --disk /mnt/shared/libvirt/{{item.key}}.qcow2,size=20,format=qcow2 --network {{network}} --nographics --noautoconsole --location {{location}}
     with_dict: "{{ vms }}"
+    run_once: yes
+
    
   handlers:
 
